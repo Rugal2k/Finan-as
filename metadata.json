@@ -1,0 +1,8 @@
+{
+  "name": "PoupaFácil",
+  "description": "Aplicativo mobile moderno e intuitivo para gestão financeira pessoal simplificada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
