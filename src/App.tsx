@@ -12,8 +12,9 @@ import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
 import { AppState, Invoice, MonthlyConfig } from './types.ts';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Check } from 'lucide-react';
+import { X, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CATEGORIES } from './constants.ts';
+import { cn } from './lib/utils.ts';
 
 const STORAGE_KEY = 'poupafacil_data';
 
@@ -39,7 +40,7 @@ const INITIAL_DATA: AppState = {
       value: 250,
       dueDate: '2026-05-15',
       recurrence: 'mensal',
-      status: 'atrasado',
+      status: 'pendente',
       paidValue: 0,
       month: '2026-05'
     },
@@ -60,8 +61,7 @@ const INITIAL_DATA: AppState = {
     {
       month: '2026-05',
       income: 5000,
-      extraEntries: 500,
-      extraExpenses: 200
+      extraEntries: 500
     }
   ]
 };
@@ -74,7 +74,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddModal, setShowAddModal] = useState(false);
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -90,14 +90,25 @@ export default function App() {
   };
 
   const handleAddInvoice = (invoice: Omit<Invoice, 'id' | 'month'>) => {
-    const newInvoice: Invoice = {
+    const monthsToCreate = invoice.recurrence === 'mensal' 
+      ? Array.from({ length: 12 - new Date(currentMonth).getMonth() }).map((_, i) => {
+          const d = new Date(currentMonth + '-02');
+          d.setMonth(d.getMonth() + i);
+          return d.toISOString().slice(0, 7);
+        })
+      : [currentMonth];
+
+    const newInvoices: Invoice[] = monthsToCreate.map(month => ({
       ...invoice,
       id: Math.random().toString(36).substr(2, 9),
-      month: currentMonth
-    };
+      month,
+      // Adjust dueDate day if needed for future months
+      dueDate: month + invoice.dueDate.slice(7)
+    }));
+
     setState(prev => ({
       ...prev,
-      invoices: [...prev.invoices, newInvoice]
+      invoices: [...prev.invoices, ...newInvoices]
     }));
     setShowAddModal(false);
   };
@@ -107,8 +118,29 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  const handleMonthChange = (direction: number) => {
+    const d = new Date(currentMonth + '-02');
+    d.setMonth(d.getMonth() + direction);
+    setCurrentMonth(d.toISOString().slice(0, 7));
+  };
+
   return (
     <div className="max-w-md mx-auto h-screen bg-white shadow-2xl relative overflow-hidden border-[12px] border-slate-900 rounded-[3rem] my-4">
+      {/* Month Switcher Header */}
+      <div className="absolute top-4 left-0 right-0 z-50 flex justify-center items-center pointer-events-none">
+        <div className="bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full flex items-center gap-3 pointer-events-auto">
+          <button onClick={() => handleMonthChange(-1)} className="text-white/60 hover:text-white transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span className="text-white text-xs font-black uppercase tracking-widest min-w-[100px] text-center">
+            {new Date(currentMonth + '-02').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+          </span>
+          <button onClick={() => handleMonthChange(1)} className="text-white/60 hover:text-white transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
       <Layout activeTab={activeTab} onTabChange={setActiveTab}>
         {activeTab === 'dashboard' && <Dashboard state={state} currentMonth={currentMonth} />}
         {activeTab === 'invoices' && (
@@ -214,14 +246,27 @@ function AddInvoiceForm({ onSubmit }: { onSubmit: (data: any) => void }) {
       </div>
 
       <div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1 mb-1 block">Categoria</label>
-        <select 
-          className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none"
-          value={formData.category}
-          onChange={e => setFormData({ ...formData, category: e.target.value })}
-        >
-          {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1 mb-1 block">Recorrência</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button 
+            onClick={() => setFormData({ ...formData, recurrence: 'mensal' })}
+            className={cn(
+              "py-2 rounded-xl text-xs font-bold transition-all border",
+              formData.recurrence === 'mensal' ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100"
+            )}
+          >
+            Fixo Mensal
+          </button>
+          <button 
+            onClick={() => setFormData({ ...formData, recurrence: 'unica' })}
+            className={cn(
+              "py-2 rounded-xl text-xs font-bold transition-all border",
+              formData.recurrence === 'unica' ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100"
+            )}
+          >
+            Única Vez
+          </button>
+        </div>
       </div>
 
       <button 

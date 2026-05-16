@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, Plus, PencilLine } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Plus, PencilLine, Check } from 'lucide-react';
 import { AppState, MonthlyConfig } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -19,7 +19,6 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
   const config = state.configs.find(c => c.month === currentMonth) || { 
     income: 0, 
     extraEntries: 0, 
-    extraExpenses: 0, 
     month: currentMonth 
   };
 
@@ -29,7 +28,7 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
   const totalRevenue = config.income + config.extraEntries;
   const monthInvoices = state.invoices.filter(i => i.month === currentMonth);
   const totalBills = monthInvoices.reduce((acc, i) => acc + i.value, 0);
-  const fixedExpenses = totalBills + config.extraExpenses;
+  const fixedExpenses = totalBills;
 
   const handleSave = () => {
     onUpdateConfig(formData);
@@ -40,14 +39,17 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
     <div className="px-6 pt-12 pb-6">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Controle Mensal</h1>
-          <p className="text-gray-500 text-sm">Gestão de renda e entradas extras</p>
+          <h1 className="text-2xl font-bold text-gray-900">Orçamento Mensal</h1>
+          <p className="text-gray-500 text-sm">Configure seus ganhos para este mês</p>
         </div>
         <button 
-          onClick={() => setIsEditing(!isEditing)}
-          className="bg-gray-100 text-gray-600 p-3 rounded-2xl border border-gray-200"
+          onClick={() => {
+            setFormData(config); // Reset to actual config when toggling
+            setIsEditing(!isEditing);
+          }}
+          className="bg-white text-slate-600 p-3 rounded-2xl border border-slate-100 shadow-sm"
         >
-          {isEditing ? <PencilLine className="w-6 h-6 text-blue-600" /> : <PencilLine className="w-6 h-6" />}
+          {isEditing ? <Check className="w-6 h-6 text-emerald-600" /> : <PencilLine className="w-6 h-6" />}
         </button>
       </div>
 
@@ -68,7 +70,7 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Entradas Extras</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Outras Receitas</label>
             <input 
               type="number"
               value={formData.extraEntries}
@@ -77,43 +79,33 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
               placeholder="R$ 0,00"
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Gastos Eventuais</label>
-            <input 
-              type="number"
-              value={formData.extraExpenses}
-              onChange={(e) => setFormData({ ...formData, extraExpenses: Number(e.target.value) })}
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 font-bold text-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="R$ 0,00"
-            />
-          </div>
           <button 
             onClick={handleSave}
-            className="w-full bg-blue-600 text-white rounded-2xl py-4 font-bold shadow-lg shadow-blue-100"
+            className="w-full bg-emerald-500 text-white rounded-2xl py-4 font-bold shadow-lg shadow-emerald-100"
           >
-            Salvar Alterações
+            Confirmar Valores de {new Date(currentMonth + '-02').toLocaleDateString('pt-BR', { month: 'long' })}
           </button>
         </motion.div>
       ) : (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center">
-                <TrendingUp className="text-green-600 w-6 h-6" />
+              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center">
+                <TrendingUp className="text-emerald-600 w-6 h-6" />
               </div>
               <div className="flex-1">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Receitas</p>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Ganhos Previstos</p>
                 <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</h3>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
               <div>
-                <p className="text-gray-400 text-[10px] uppercase font-bold">Salário</p>
+                <p className="text-gray-400 text-[10px] uppercase font-bold">Salário Base</p>
                 <p className="font-bold text-gray-700">{formatCurrency(config.income)}</p>
               </div>
               <div>
-                <p className="text-gray-400 text-[10px] uppercase font-bold">Extras</p>
+                <p className="text-gray-400 text-[10px] uppercase font-bold">Outros Ganhos</p>
                 <p className="font-bold text-gray-700">{formatCurrency(config.extraEntries)}</p>
               </div>
             </div>
@@ -121,24 +113,19 @@ export const MonthlyControl = ({ state, currentMonth, onUpdateConfig }: MonthlyC
 
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center">
-                <TrendingDown className="text-red-600 w-6 h-6" />
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center">
+                <TrendingDown className="text-slate-600 w-6 h-6" />
               </div>
               <div className="flex-1">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Planejado</p>
-                <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(fixedExpenses)}</h3>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Contas Vinculadas</p>
+                <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(totalBills)}</h3>
               </div>
             </div>
 
-            <div className="space-y-3 mt-6 pt-6 border-t border-gray-100">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Contas Cadastradas</span>
-                <span className="font-bold text-gray-700">{formatCurrency(totalBills)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">Gastos Extras</span>
-                <span className="font-bold text-gray-700">{formatCurrency(config.extraExpenses)}</span>
-              </div>
+            <div className="mt-6 pt-6 border-t border-gray-100">
+               <p className="text-slate-500 text-xs leading-relaxed italic">
+                 Este valor é a soma de todas as faturas cadastradas para o mês de {new Date(currentMonth + '-02').toLocaleDateString('pt-BR', { month: 'long' })}.
+               </p>
             </div>
           </div>
 

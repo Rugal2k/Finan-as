@@ -5,7 +5,7 @@
 
 import { motion } from 'motion/react';
 import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, cn } from '../lib/utils';
 import { AppState, Invoice } from '../types';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -16,14 +16,7 @@ interface DashboardProps {
 
 export const Dashboard = ({ state, currentMonth }: DashboardProps) => {
   const monthData = state.invoices.filter(i => i.month === currentMonth);
-  const config = state.configs.find(c => c.month === currentMonth) || { income: 0, extraEntries: 0, extraExpenses: 0, month: currentMonth };
-
-  const totalIncome = config.income + config.extraEntries;
-  const totalInvoices = monthData.reduce((acc, curr) => acc + curr.value, 0);
-  const totalPaid = monthData.reduce((acc, curr) => acc + curr.paidValue, 0);
-  const totalPending = totalInvoices - totalPaid + config.extraExpenses;
-  
-  const balance = totalIncome - (totalPaid + config.extraExpenses);
+  const config = state.configs.find(c => c.month === currentMonth) || { income: 0, extraEntries: 0, month: currentMonth };
 
   const today = new Date().toISOString().split('T')[0];
   const processedMonthData = monthData.map(i => {
@@ -33,8 +26,20 @@ export const Dashboard = ({ state, currentMonth }: DashboardProps) => {
     return i;
   });
 
-  const pendingCount = processedMonthData.filter(i => i.status !== 'pago').length;
-  const overdueCount = processedMonthData.filter(i => i.status === 'atrasado').length;
+  // Find most critical invoice
+  const overdueInvoice = processedMonthData.find(i => i.status === 'atrasado');
+  const upcomingInvoice = processedMonthData
+    .filter(i => i.status !== 'pago' && i.dueDate >= today)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  const criticalInvoice = overdueInvoice || upcomingInvoice;
+
+  const totalIncome = config.income + config.extraEntries;
+  const totalInvoices = processedMonthData.reduce((acc, curr) => acc + curr.value, 0);
+  const totalPaid = processedMonthData.reduce((acc, curr) => acc + curr.paidValue, 0);
+  const totalPending = totalInvoices - totalPaid;
+  
+  const balance = totalIncome - totalPaid;
 
   const chartData = [
     { name: 'Pago', value: totalPaid, color: '#10B981' },
@@ -91,16 +96,30 @@ export const Dashboard = ({ state, currentMonth }: DashboardProps) => {
         </div>
 
         {/* Warning Alert Bento */}
-        {(overdueCount > 0 || pendingCount > 0) && (
-          <div className="col-span-2 bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center gap-4 transition-all">
-            <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center flex-shrink-0">
+        {criticalInvoice && (
+          <div className={cn(
+            "col-span-2 rounded-2xl p-4 flex items-center gap-4 transition-all border",
+            criticalInvoice.status === 'atrasado' ? "bg-rose-50 border-rose-100" : "bg-amber-50 border-amber-100"
+          )}>
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+              criticalInvoice.status === 'atrasado' ? "bg-rose-500" : "bg-amber-500"
+            )}>
               <AlertCircle className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <p className="text-rose-900 font-bold text-sm">
-                Atenção: {overdueCount > 0 ? "Faturas Atrasadas" : "Vencendo em breve"}
+              <p className={cn(
+                "font-bold text-sm",
+                criticalInvoice.status === 'atrasado' ? "text-rose-900" : "text-amber-900"
+              )}>
+                {criticalInvoice.status === 'atrasado' ? "CONTA ATRASADA!" : "Próximo Vencimento"}
               </p>
-              <p className="text-rose-600 text-xs">Existem pendências financeiras!</p>
+              <p className={cn(
+                "text-xs",
+                criticalInvoice.status === 'atrasado' ? "text-rose-600" : "text-amber-600"
+              )}>
+                {criticalInvoice.companyName} • {formatCurrency(criticalInvoice.value)} • Vence {new Date(criticalInvoice.dueDate).toLocaleDateString('pt-BR')}
+              </p>
             </div>
           </div>
         )}

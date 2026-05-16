@@ -30,7 +30,6 @@ export interface MonthlyConfig {
   month: string;
   income: number;
   extraEntries: number;
-  extraExpenses: number;
 }
 
 export interface AppState {
